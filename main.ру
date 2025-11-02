@@ -1,28 +1,11 @@
 from fastapi import FastAPI
-import os, time
-from google.cloud import storage
 
 app = FastAPI()
 
 @app.get("/")
-def root():
-    return {"ok": True, "service": "orchestrator"}
+def read_root():
+    return {"status": "ok"}
 
-@app.get("/health")
-def health():
-    keys = ["OPENAI_KEY", "GEMINI_API_KEY", "DEEPSEEK_API_KEY", "XAI_API_KEY", "BUCKET_NAME"]
-    return {"ok": True, "env_present": {k: bool(os.getenv(k)) for k in keys}}
-
-@app.post("/run")
-def run():
-    bucket_name = os.getenv("BUCKET_NAME")
-    if not bucket_name:
-        return {"ok": False, "msg": "BUCKET_NAME not set"}
-
-    client = storage.Client()
-    blob = client.bucket(bucket_name).blob(f"html/ping-{int(time.time())}.txt")
-    blob.upload_from_string("orchestrator ok")
-    return {"ok": True, "written": blob.name}
 
 
 
