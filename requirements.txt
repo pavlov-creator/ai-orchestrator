@@ -1,4 +1,4 @@
 fastapi
 uvicorn[standard]
-
+pavlov-creator/ai-orchestrator
 
