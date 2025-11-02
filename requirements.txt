@@ -1,2 +1,6 @@
-pavlov-creator/ai-orchestrator
+fastapi
+uvicorn[standard]
+pydantic
+requests
+
 
