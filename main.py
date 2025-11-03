@@ -23,7 +23,7 @@ def health():
 
 @app.post("/task")
 async def task(payload: TaskPayload):
-    # Явный лог в stdout — Cloud Run это точно поймает
+    # Лог в stdout – это уйдёт в Cloud Run Logs
     print(f"NEW_TASK message={payload.message!r} step={payload.step}", flush=True)
 
     return {
@@ -36,11 +36,6 @@ if __name__ == "__main__":
     port = int(os.getenv("PORT", "8080"))
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=port)
-
-
-
-
-
 
 
 
