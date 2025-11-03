@@ -1,6 +1,11 @@
 from fastapi import FastAPI
 from pydantic import BaseModel
+import uvicorn
 import os
+import logging
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger("orchestrator")
 
 app = FastAPI()
 
@@ -22,23 +27,18 @@ def health():
 
 @app.post("/task")
 async def task(payload: TaskPayload):
-    # Простой лог в stdout — Cloud Run его подхватит
-    print(f"NEW_TASK message={payload.message!r} step={payload.step}")
-
+    # Логируем задачу в stdout → попадёт в Cloud Run Logs
+    logger.info(f"NEW_TASK {payload.model_dump()}")
     return {
         "status": "received",
-        "payload": {
-            "message": payload.message,
-            "step": payload.step,
-        },
+        "payload": payload,
     }
 
 
 if __name__ == "__main__":
     port = int(os.getenv("PORT", "8080"))
-    import uvicorn
-
     uvicorn.run(app, host="0.0.0.0", port=port)
+
 
 
 
