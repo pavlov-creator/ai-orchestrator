@@ -1,18 +1,13 @@
 from fastapi import FastAPI
 from pydantic import BaseModel
-import uvicorn
-import logging
 import os
-
-# Простейшая настройка логов: всё, что мы пишем logging.info/print, уходит в stdout
-logging.basicConfig(level=logging.INFO)
 
 app = FastAPI()
 
 
 class TaskPayload(BaseModel):
     message: str
-    step: int = 0
+    step: int
 
 
 @app.get("/")
@@ -27,10 +22,8 @@ def health():
 
 @app.post("/task")
 async def task(payload: TaskPayload):
-    # Лог в stdout – его точно увидим в Cloud Run Logs
-    logging.info(f"New task: {payload.json()}")
-    print(f"New task (print): {payload.json()}")
-
+    # Пишем в stdout, Cloud Run это точно залогирует
+    print(f"NEW_TASK step={payload.step} message={payload.message}", flush=True)
     return {
         "status": "received",
         "payload": payload,
@@ -39,7 +32,9 @@ async def task(payload: TaskPayload):
 
 if __name__ == "__main__":
     port = int(os.getenv("PORT", "8080"))
+    import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=port)
+
 
 
 
