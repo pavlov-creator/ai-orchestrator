@@ -24,7 +24,7 @@ def health():
 
 @app.post("/task")
 async def task(payload: TaskPayload):
-    # payload — это JSON из тела запроса
+    # payload — это JSON, который пришёл в теле запроса
     return {
         "status": "received",
         "payload": payload,
@@ -34,6 +34,7 @@ async def task(payload: TaskPayload):
 if __name__ == "__main__":
     port = int(os.getenv("PORT", "8080"))
     uvicorn.run(app, host="0.0.0.0", port=port)
+
 
 
 
