@@ -22,17 +22,22 @@ def health():
 
 @app.post("/task")
 async def task(payload: TaskPayload):
-    # Пишем в stdout, Cloud Run это точно залогирует
-    print(f"NEW_TASK step={payload.step} message={payload.message}", flush=True)
+    # Простой лог в stdout — Cloud Run его подхватит
+    print(f"NEW_TASK message={payload.message!r} step={payload.step}")
+
     return {
         "status": "received",
-        "payload": payload,
+        "payload": {
+            "message": payload.message,
+            "step": payload.step,
+        },
     }
 
 
 if __name__ == "__main__":
     port = int(os.getenv("PORT", "8080"))
     import uvicorn
+
     uvicorn.run(app, host="0.0.0.0", port=port)
 
 
