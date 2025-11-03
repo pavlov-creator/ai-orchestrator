@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Body
+from fastapi import FastAPI
 import uvicorn
 import os
 
@@ -16,18 +16,18 @@ def health():
 
 
 @app.post("/task")
-async def task(body: dict = Body(...)):
-    # тут пока просто эхо, дальше вставим логику оркестратора
+async def task(body: dict):
+    # пока просто эхо — вернём то, что получили
     return {
         "status": "received",
         "payload": body,
     }
 
 
-
 if __name__ == "__main__":
     port = int(os.getenv("PORT", "8080"))
     uvicorn.run(app, host="0.0.0.0", port=port)
+
 
 
 
