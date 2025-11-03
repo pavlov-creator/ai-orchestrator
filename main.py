@@ -16,13 +16,13 @@ def health():
 
 
 @app.post("/task")
-async def task(request: Request):
-    body = await request.json()
+async def task(body: dict = Body(...)):
     # тут пока просто эхо, дальше вставим логику оркестратора
     return {
         "status": "received",
         "payload": body,
     }
+
 
 
 if __name__ == "__main__":
