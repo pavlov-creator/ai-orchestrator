@@ -1,62 +1,43 @@
 from fastapi import FastAPI
 from pydantic import BaseModel
-from typing import List, Dict, Any
+import openai
 import os
-from openai import OpenAI
 
-app = FastAPI()
+app = FastAPI(title="AI Orchestrator")
 
-# ---- МОДЕЛИ ----
-
-class Message(BaseModel):
-    role: str
-    content: str
+# ====== МОДЕЛЬ ВХОДЯЩЕГО ЗАПРОСА ======
 
 class TaskRequest(BaseModel):
-    model: str
-    messages: List[Message]
+    message: str
+    step: int = 1
 
-class TaskResponse(BaseModel):
-    status: str
-    payload: Dict[str, Any]
+# ====== OPENAI КЛИЕНТ ======
 
+openai.api_key = os.getenv("OPENAI_API_KEY")
 
-# ---- ИНИЦИАЛИЗАЦИЯ GPT ----
+# ====== ОБРАБОТЧИК AI ======
 
-OPENAI_KEY = os.getenv("OPENAI_KEY")
-client = OpenAI(api_key=OPENAI_KEY)
-
-
-# ---- ОБРАБОТКА GPT ----
-
-async def handle_gpt(messages: List[Message]) -> str:
-    formatted = [{"role": m.role, "content": m.content} for m in messages]
-
-    response = client.chat.completions.create(
+def run_ai(message: str, step: int):
+    response = openai.ChatCompletion.create(
         model="gpt-4o-mini",
-        messages=formatted,
-        max_tokens=200
+        messages=[
+            {"role": "system", "content": "Ты — внутренний процессор задач."},
+            {"role": "user", "content": f"message={message}, step={step}"}
+        ]
     )
+    return response.choices[0].message["content"]
 
-    return response.choices[0].message.content
+# ====== ENDPOINT ======
 
+@app.post("/task")
+def process_task(request: TaskRequest):
+    ai_answer = run_ai(request.message, request.step)
 
-# ---- ENDPOINT /task ----
-
-@app.post("/task", response_model=TaskResponse)
-async def task(req: TaskRequest):
-
-    if req.model == "gpt":
-        answer = await handle_gpt(req.messages)
-        return TaskResponse(
-            status="ok",
-            payload={"message": answer}
-        )
-
-    return TaskResponse(
-        status="error",
-        payload={"message": "unknown model"}
-    )
+    return {
+        "status": "ok",
+        "input": request.dict(),
+        "ai_response": ai_answer
+    }
 
 
 
