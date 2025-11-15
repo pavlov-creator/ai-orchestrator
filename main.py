@@ -1,25 +1,30 @@
 from fastapi import FastAPI
 from pydantic import BaseModel
-import logging
-
-# Настройка логов
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger("ai-orchestrator")
+import json
+import sys
 
 app = FastAPI()
 
-class TaskPayload(BaseModel):
+class Task(BaseModel):
     message: str
     step: int
 
+def log(msg: dict):
+    # Печать в stdout, чтобы Cloud Run точно видел
+    print(json.dumps(msg), file=sys.stdout, flush=True)
+
 @app.post("/task")
-async def process_task(payload: TaskPayload):
-    logger.info(f"Received task: {payload.dict()}")
+async def process_task(task: Task):
+    log({
+        "event": "task_received",
+        "message": task.message,
+        "step": task.step
+    })
+
     return {
         "status": "received",
-        "payload": payload.dict()
+        "payload": task.dict()
     }
-
 
 
 
