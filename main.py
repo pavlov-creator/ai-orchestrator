@@ -1,43 +1,56 @@
 from fastapi import FastAPI
 from pydantic import BaseModel
-import openai
 import os
+import uvicorn
+from openai import OpenAI
 
-app = FastAPI(title="AI Orchestrator")
+app = FastAPI()
 
-# ====== МОДЕЛЬ ВХОДЯЩЕГО ЗАПРОСА ======
+client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
-class TaskRequest(BaseModel):
+class TaskPayload(BaseModel):
     message: str
-    step: int = 1
+    step: int
 
-# ====== OPENAI КЛИЕНТ ======
 
-openai.api_key = os.getenv("OPENAI_API_KEY")
+@app.get("/")
+def root():
+    return {"status": "ok"}
 
-# ====== ОБРАБОТЧИК AI ======
 
-def run_ai(message: str, step: int):
-    response = openai.ChatCompletion.create(
-        model="gpt-4o-mini",
-        messages=[
-            {"role": "system", "content": "Ты — внутренний процессор задач."},
-            {"role": "user", "content": f"message={message}, step={step}"}
-        ]
-    )
-    return response.choices[0].message["content"]
+@app.get("/health")
+def health():
+    return {"status": "healthy"}
 
-# ====== ENDPOINT ======
 
 @app.post("/task")
-def process_task(request: TaskRequest):
-    ai_answer = run_ai(request.message, request.step)
+async def task(payload: TaskPayload):
+    print(f"[NEW_TASK] message={payload.message} step={payload.step}", flush=True)
+
+    # Вызов OpenAI
+    try:
+        completion = client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[
+                {"role": "user", "content": payload.message}
+            ]
+        )
+
+        ai_answer = completion.choices[0].message["content"]
+
+    except Exception as e:
+        ai_answer = f"ERROR: {str(e)}"
 
     return {
-        "status": "ok",
-        "input": request.dict(),
-        "ai_response": ai_answer
+        "status": "processed",
+        "input": payload.dict(),
+        "ai_answer": ai_answer
     }
+
+
+if __name__ == "__main__":
+    port = int(os.getenv("PORT", "8080"))
+    uvicorn.run(app, host="0.0.0.0", port=port)
 
 
 
