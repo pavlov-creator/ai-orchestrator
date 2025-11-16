@@ -6,40 +6,48 @@ from openai import OpenAI
 
 app = FastAPI()
 
-# Клиент OpenAI. Ключ берём из переменной окружения OPENAI_API_KEY
+# Клиент OpenAI берёт ключ из переменной окружения OPENAI_API_KEY
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
-
-class TaskPayload(BaseModel):
+# ---- Модель запроса ----
+class TaskRequest(BaseModel):
     prompt: str
 
+# ---- Эндпоинты ----
 
 @app.get("/")
 def root():
     return {"status": "ok"}
 
-
 @app.get("/health")
 def health():
     return {"status": "healthy"}
 
-
 @app.post("/task")
-async def task(payload: TaskPayload):
-    # Лог в Cloud Run
+async def task(payload: TaskRequest):
+    """
+    Принимаем:
+    {
+      "prompt": "Привет, кто ты?"
+    }
+    """
+
     print(f"[NEW_TASK] prompt={payload.prompt}", flush=True)
+
+    ai_answer = None
 
     try:
         completion = client.chat.completions.create(
-            model="gpt-4o-mini",
+            model="gpt-4.1-mini",  # при желании позже поменяем
             messages=[
+                {"role": "system", "content": "You are a helpful assistant."},
                 {"role": "user", "content": payload.prompt},
             ],
-            max_tokens=200,
         )
         ai_answer = completion.choices[0].message.content
+
     except Exception as e:
-        ai_answer = f"ERROR: {e}"
+        ai_answer = f"ERROR: {str(e)}"
 
     return {
         "status": "processed",
@@ -51,8 +59,6 @@ async def task(payload: TaskPayload):
 if __name__ == "__main__":
     port = int(os.getenv("PORT", "8080"))
     uvicorn.run(app, host="0.0.0.0", port=port)
-
-
 
 
 
