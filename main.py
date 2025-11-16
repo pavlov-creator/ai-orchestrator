@@ -1,45 +1,45 @@
-import os
 from fastapi import FastAPI
 from pydantic import BaseModel
-from fastapi.middleware.cors import CORSMiddleware
-from openai import OpenAI
+import os
 import uvicorn
+from openai import OpenAI
 
 app = FastAPI()
 
-# CORS
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
-# ---- БЕРЁМ КЛЮЧ РОВНО ТАК, КАК В CLOUD RUN ----
-OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY")
-
-client = OpenAI(api_key=OPENAI_API_KEY)
+# Клиент OpenAI. Ключ берём из переменной окружения OPENAI_API_KEY
+client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
 
-class Payload(BaseModel):
+class TaskPayload(BaseModel):
     prompt: str
 
 
-@app.post("/process")
-async def process(payload: Payload):
-    # Лог в Cloud Run, чтобы видеть вход
+@app.get("/")
+def root():
+    return {"status": "ok"}
+
+
+@app.get("/health")
+def health():
+    return {"status": "healthy"}
+
+
+@app.post("/task")
+async def task(payload: TaskPayload):
+    # Лог в Cloud Run
     print(f"[NEW_TASK] prompt={payload.prompt}", flush=True)
 
-    # Вызов OpenAI
-    completion = client.chat.completions.create(
-        model="gpt-4o-mini",
-        messages=[
-            {"role": "user", "content": payload.prompt}
-        ]
-    )
-
-    ai_answer = completion.choices[0].message.content
+    try:
+        completion = client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[
+                {"role": "user", "content": payload.prompt},
+            ],
+            max_tokens=200,
+        )
+        ai_answer = completion.choices[0].message.content
+    except Exception as e:
+        ai_answer = f"ERROR: {e}"
 
     return {
         "status": "processed",
