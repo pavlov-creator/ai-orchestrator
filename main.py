@@ -1,64 +1,60 @@
+import os
 from fastapi import FastAPI
 from pydantic import BaseModel
-import os
-import uvicorn
 from openai import OpenAI
+import google.auth
+from google.cloud import storage
+import requests
 
 app = FastAPI()
 
-# Клиент OpenAI берёт ключ из переменной окружения OPENAI_API_KEY
-client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+# ====== ENV EXACTLY AS ON YOUR SCREEN ======
+BUCKET_NAME = os.getenv("BUCKET_NAME")
+OPENAI_API_KEY = os.getenv("OPENAIAPIKEY")
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+DEEPSEEK_API_KEY = os.getenv("DEEPSEEK_API_KEY")
+XAI_API_KEY = os.getenv("XAI_API_KEY")
 
-# ---- Модель запроса ----
-class TaskRequest(BaseModel):
+# ====== CLIENTS ======
+openai_client = OpenAI(api_key=OPENAI_API_KEY)
+
+# ====== DATA MODEL ======
+class Task(BaseModel):
     prompt: str
+    model: str   # "openai" | "gemini" | "deepseek" | "xai"
 
-# ---- Эндпоинты ----
+# ====== ROUTE ======
+@app.post("/run")
+async def run_task(task: Task):
 
-@app.get("/")
-def root():
-    return {"status": "ok"}
-
-@app.get("/health")
-def health():
-    return {"status": "healthy"}
-
-@app.post("/task")
-async def task(payload: TaskRequest):
-    """
-    Принимаем:
-    {
-      "prompt": "Привет, кто ты?"
-    }
-    """
-
-    print(f"[NEW_TASK] prompt={payload.prompt}", flush=True)
-
-    ai_answer = None
-
-    try:
-        completion = client.chat.completions.create(
-            model="gpt-4.1-mini",  # при желании позже поменяем
-            messages=[
-                {"role": "system", "content": "You are a helpful assistant."},
-                {"role": "user", "content": payload.prompt},
-            ],
+    if task.model == "openai":
+        ans = openai_client.chat.completions.create(
+            model="gpt-4.1",
+            messages=[{"role": "user", "content": task.prompt}]
         )
-        ai_answer = completion.choices[0].message.content
+        return {"answer": ans.choices[0].message.content}
 
-    except Exception as e:
-        ai_answer = f"ERROR: {str(e)}"
+    if task.model == "gemini":
+        url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateText"
+        r = requests.post(url, params={"key": GEMINI_API_KEY},
+            json={"prompt": {"text": task.prompt}})
+        return {"answer": r.json()["candidates"][0]["output"]}
 
-    return {
-        "status": "processed",
-        "input": payload.dict(),
-        "ai_answer": ai_answer,
-    }
+    if task.model == "deepseek":
+        url = "https://api.deepseek.com/v1/chat/completions"
+        r = requests.post(url,
+            headers={"Authorization": f"Bearer {DEEPSEEK_API_KEY}"},
+            json={"model": "deepseek-chat", "messages": [{"role": "user", "content": task.prompt}]})
+        return {"answer": r.json()["choices"][0]["message"]["content"]}
 
+    if task.model == "xai":
+        url = "https://api.x.ai/v1/chat/completions"
+        r = requests.post(url,
+            headers={"Authorization": f"Bearer {XAI_API_KEY}"},
+            json={"model": "grok-beta", "messages": [{"role": "user", "content": task.prompt}]})
+        return {"answer": r.json()["choices"][0]["message"]["content"]}
 
-if __name__ == "__main__":
-    port = int(os.getenv("PORT", "8080"))
-    uvicorn.run(app, host="0.0.0.0", port=port)
+    return {"error": "unknown model"}
 
 
 
